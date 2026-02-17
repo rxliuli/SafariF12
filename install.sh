@@ -1,0 +1,93 @@
+#!/bin/bash
+set -euo pipefail
+
+APP_NAME="SafariF12"
+INSTALL_DIR="$HOME/Applications"
+LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+PLIST_NAME="com.local.safarif12.plist"
+CURRENT_USER=$(whoami)
+
+# Where are we running from?
+# Support both: running from gist clone dir, or piped from curl (download files)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null || echo ".")" && pwd)"
+
+echo "🔧 SafariF12 Installer"
+echo "======================"
+echo ""
+
+# ── Step 0: Check for Xcode command line tools ──
+if ! xcode-select -p &>/dev/null; then
+    echo "❌ Xcode Command Line Tools not found."
+    echo "   Run: xcode-select --install"
+    exit 1
+fi
+
+# ── Step 1: Get source files ──
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+if [[ -f "$SCRIPT_DIR/$APP_NAME.swift" ]]; then
+    # Running from cloned gist directory
+    cp "$SCRIPT_DIR/$APP_NAME.swift" "$WORK_DIR/"
+    cp "$SCRIPT_DIR/$PLIST_NAME" "$WORK_DIR/"
+else
+    # Piped from curl — download files from the same gist
+    # Detect the gist base URL from the install.sh URL if possible,
+    # otherwise the user should clone the gist first.
+    echo "⚠️  Source files not found in current directory."
+    echo "   Please clone the gist first:"
+    echo ""
+    echo "   git clone https://github.com/rxliuli/SafariF12.git"
+    echo "   cd SafariF12 && bash install.sh"
+    echo ""
+    exit 1
+fi
+
+# ── Step 2: Compile ──
+echo "⏳ Compiling $APP_NAME..."
+swiftc "$WORK_DIR/$APP_NAME.swift" \
+    -o "$WORK_DIR/$APP_NAME" \
+    -framework Cocoa \
+    -framework Carbon \
+    -O
+echo "✅ Compiled successfully."
+
+# ── Step 3: Install binary ──
+mkdir -p "$INSTALL_DIR"
+cp "$WORK_DIR/$APP_NAME" "$INSTALL_DIR/$APP_NAME"
+chmod +x "$INSTALL_DIR/$APP_NAME"
+echo "✅ Installed to $INSTALL_DIR/$APP_NAME"
+
+# ── Step 4: Unload old agent if exists ──
+if launchctl list "$PLIST_NAME" &>/dev/null 2>&1; then
+    echo "⏳ Unloading existing LaunchAgent..."
+    launchctl unload "$LAUNCH_AGENTS_DIR/$PLIST_NAME" 2>/dev/null || true
+fi
+
+# ── Step 5: Install LaunchAgent ──
+mkdir -p "$LAUNCH_AGENTS_DIR"
+sed "s/__USER__/$CURRENT_USER/g" "$WORK_DIR/$PLIST_NAME" > "$LAUNCH_AGENTS_DIR/$PLIST_NAME"
+echo "✅ LaunchAgent installed to $LAUNCH_AGENTS_DIR/$PLIST_NAME"
+
+# ── Step 6: Load and start ──
+launchctl load "$LAUNCH_AGENTS_DIR/$PLIST_NAME"
+echo "✅ LaunchAgent loaded."
+
+echo ""
+echo "🎉 Done! SafariF12 is now running."
+echo ""
+echo "📌 Important: First run will prompt for Accessibility permission."
+echo "   Go to: System Settings → Privacy & Security → Accessibility"
+echo "   Find and enable '$APP_NAME', then it will work automatically."
+echo ""
+echo "📌 Prerequisite: In Safari → Settings → Advanced,"
+echo "   enable 'Show features for web developers'."
+echo ""
+echo "── Commands ──"
+echo "  Stop:      launchctl unload ~/Library/LaunchAgents/$PLIST_NAME"
+echo "  Start:     launchctl load ~/Library/LaunchAgents/$PLIST_NAME"
+echo "  Uninstall: bash <(curl -fsSL https://raw.githubusercontent.com/rxliuli/SafariF12/main/uninstall.sh)"
+echo "             or manually:"
+echo "             launchctl unload ~/Library/LaunchAgents/$PLIST_NAME"
+echo "             rm ~/Library/LaunchAgents/$PLIST_NAME"
+echo "             rm ~/Applications/$APP_NAME"
