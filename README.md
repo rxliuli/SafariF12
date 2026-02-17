@@ -7,7 +7,7 @@ Lightweight, no UI, no Dock icon. Only intercepts F12 when Safari is the active 
 ## One-liner Install
 
 ```bash
-git clone https://github.com/rxliuli/SafariF12.git && cd SafariF12 && bash install.sh
+curl -fsSL https://raw.githubusercontent.com/rxliuli/SafariF12/main/install.sh | bash
 ```
 
 This will:
@@ -25,7 +25,7 @@ This will:
 ## Uninstall
 
 ```bash
-cd SafariF12 && bash uninstall.sh
+curl -fsSL https://raw.githubusercontent.com/rxliuli/SafariF12/main/uninstall.sh | bash
 ```
 
 ## How it works

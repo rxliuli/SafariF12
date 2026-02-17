@@ -7,9 +7,7 @@ LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 PLIST_NAME="com.local.safarif12.plist"
 CURRENT_USER=$(whoami)
 
-# Where are we running from?
-# Support both: running from gist clone dir, or piped from curl (download files)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null || echo ".")" && pwd)"
+REPO_RAW_BASE="https://raw.githubusercontent.com/rxliuli/SafariF12/main"
 
 echo "🔧 SafariF12 Installer"
 echo "======================"
@@ -26,22 +24,10 @@ fi
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-if [[ -f "$SCRIPT_DIR/$APP_NAME.swift" ]]; then
-    # Running from cloned gist directory
-    cp "$SCRIPT_DIR/$APP_NAME.swift" "$WORK_DIR/"
-    cp "$SCRIPT_DIR/$PLIST_NAME" "$WORK_DIR/"
-else
-    # Piped from curl — download files from the same gist
-    # Detect the gist base URL from the install.sh URL if possible,
-    # otherwise the user should clone the gist first.
-    echo "⚠️  Source files not found in current directory."
-    echo "   Please clone the gist first:"
-    echo ""
-    echo "   git clone https://github.com/rxliuli/SafariF12.git"
-    echo "   cd SafariF12 && bash install.sh"
-    echo ""
-    exit 1
-fi
+echo "⏳ Downloading source files..."
+curl -fsSL "$REPO_RAW_BASE/$APP_NAME.swift" -o "$WORK_DIR/$APP_NAME.swift"
+curl -fsSL "$REPO_RAW_BASE/$PLIST_NAME" -o "$WORK_DIR/$PLIST_NAME"
+echo "✅ Downloaded."
 
 # ── Step 2: Compile ──
 echo "⏳ Compiling $APP_NAME..."
@@ -86,7 +72,7 @@ echo ""
 echo "── Commands ──"
 echo "  Stop:      launchctl unload ~/Library/LaunchAgents/$PLIST_NAME"
 echo "  Start:     launchctl load ~/Library/LaunchAgents/$PLIST_NAME"
-echo "  Uninstall: bash <(curl -fsSL https://raw.githubusercontent.com/rxliuli/SafariF12/main/uninstall.sh)"
+echo "  Uninstall: curl -fsSL https://raw.githubusercontent.com/rxliuli/SafariF12/main/uninstall.sh | bash"
 echo "             or manually:"
 echo "             launchctl unload ~/Library/LaunchAgents/$PLIST_NAME"
 echo "             rm ~/Library/LaunchAgents/$PLIST_NAME"
